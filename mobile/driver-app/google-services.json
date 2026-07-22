@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "457474724811",
+    "project_id": "doce-encanto-b6ecf",
+    "storage_bucket": "doce-encanto-b6ecf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457474724811:android:aa475fe11f2906fa739c4e",
+        "android_client_info": {
+          "package_name": "com.eprox.doceencanto.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGfuJcNy2beGtE4flrfWktN30DK3YcbpM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
