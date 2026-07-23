@@ -4,6 +4,7 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { CartPanel } from "@/components/layout/cart-panel";
 import { Footer } from "@/components/layout/footer";
 import { WhatsappButton } from "@/components/layout/whatsapp-button";
+import { CookieConsent } from "@/components/layout/cookie-consent";
 
 export function AppShell({
   children,
@@ -32,6 +33,7 @@ export function AppShell({
         )}
 
         <WhatsappButton />
+        <CookieConsent />
       </div>
     </Suspense>
   );

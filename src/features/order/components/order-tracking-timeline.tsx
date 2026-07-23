@@ -1,19 +1,35 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { OrderStatus } from "@/types/order";
+import type { OrderStatus } from "@/types/firebase-models";
 
-const steps: { key: OrderStatus; label: string }[] = [
-  { key: "recebido", label: "Pedido recebido" },
-  { key: "preparando", label: "Em preparação" },
-  { key: "saiu-para-entrega", label: "Saiu para entrega" },
-  { key: "entregue", label: "Entregue" },
+const steps: { label: string; statuses: OrderStatus[] }[] = [
+  { label: "Pedido recebido", statuses: ["novo"] },
+  { label: "Em preparação", statuses: ["em-producao", "pronto"] },
+  { label: "Saiu para entrega", statuses: ["aguardando-motorista", "em-entrega"] },
+  { label: "Entregue", statuses: ["finalizado"] },
 ];
 
 export function OrderTrackingTimeline({ status }: { status: OrderStatus }) {
-  const currentIndex = steps.findIndex((step) => step.key === status);
+  if (status === "cancelado") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl bg-destructive/5 p-5 text-destructive">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+          <X className="size-4.5" />
+        </span>
+        <div>
+          <p className="text-sm font-semibold">Pedido cancelado</p>
+          <p className="text-xs text-destructive/80">
+            Se isso não era esperado, fale com a gente pelo chat abaixo.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentIndex = steps.findIndex((step) => step.statuses.includes(status));
 
   return (
     <div className="flex flex-col">
@@ -21,7 +37,7 @@ export function OrderTrackingTimeline({ status }: { status: OrderStatus }) {
         const isDone = index <= currentIndex;
         const isLast = index === steps.length - 1;
         return (
-          <div key={step.key} className="flex gap-4">
+          <div key={step.label} className="flex gap-4">
             <div className="flex flex-col items-center">
               <motion.div
                 initial={false}

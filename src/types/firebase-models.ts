@@ -1,7 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
 export interface AdminDoc {
-  uid: string;
+  id: string;
   email: string;
   name: string;
   createdAt: Timestamp;
@@ -21,28 +21,31 @@ export type OrderPaymentMethod = "pix" | "cartao" | "paypal" | "dinheiro";
 export interface OrderItemDoc {
   productId: string;
   name: string;
+  image: string;
   price: number;
   quantity: number;
 }
 
 export interface OrderDoc {
   id: string;
-  number: string;
-  customerId?: string;
+  customerId: string;
   customerName: string;
   customerPhone: string;
   address: string;
   items: OrderItemDoc[];
+  subtotal: number;
+  deliveryFee: number;
   notes?: string;
   paymentMethod: OrderPaymentMethod;
   total: number;
   status: OrderStatus;
   driverId?: string;
+  estimatedDelivery?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-export type DriverStatus = "disponivel" | "ocupado" | "offline";
+export type DriverStatus = "disponivel" | "ocupado" | "offline" | "desligado";
 
 export interface DriverDoc {
   id: string;
@@ -54,11 +57,24 @@ export interface DriverDoc {
   updatedAt: Timestamp;
 }
 
+export interface AddressDoc {
+  id: string;
+  label: string;
+  street: string;
+  number: string;
+  complement?: string;
+  city: string;
+  zip: string;
+  isDefault?: boolean;
+}
+
 export interface CustomerDoc {
   id: string;
   name: string;
+  email: string;
   phone: string;
-  address?: string;
+  addresses: AddressDoc[];
+  favoriteProductIds: string[];
   totalSpent: number;
   lastPurchaseAt?: Timestamp;
   createdAt: Timestamp;
@@ -76,7 +92,7 @@ export interface AdminProductDoc {
   updatedAt: Timestamp;
 }
 
-export type ChatParticipantType = "admin" | "motorista";
+export type ChatParticipantType = "admin" | "motorista" | "cliente";
 
 export interface ChatMessageDoc {
   id: string;

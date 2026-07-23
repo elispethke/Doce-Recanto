@@ -4,36 +4,36 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { fetchChatMessages, sendChatMessage, sendAutoReply } from "@/services/orders.service";
-import type { ChatMessage } from "@/types/order";
+import { subscribeToChatMessages, sendChatMessage } from "@/services/firestore/chat.service";
+import { useCustomerAuth } from "@/contexts/customer-auth-context";
+import type { ChatMessageDoc } from "@/types/firebase-models";
+
+function formatMessageTime(message: ChatMessageDoc): string {
+  const date = message.createdAt?.toDate?.();
+  if (!date) return "agora";
+  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
 
 export function OrderChat({ orderId }: { orderId: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { user } = useCustomerAuth();
+  const [messages, setMessages] = useState<ChatMessageDoc[]>([]);
   const [text, setText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchChatMessages(orderId).then(setMessages);
+    return subscribeToChatMessages(orderId, setMessages);
   }, [orderId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || !user) return;
     setText("");
-    const updated = await sendChatMessage(orderId, trimmed);
-    setMessages(updated);
-    setIsTyping(true);
-    window.setTimeout(async () => {
-      const withReply = await sendAutoReply(orderId);
-      setMessages(withReply);
-      setIsTyping(false);
-    }, 1400);
+    await sendChatMessage(orderId, "cliente", user.uid, trimmed);
   }
 
   return (
@@ -44,6 +44,11 @@ export function OrderChat({ orderId }: { orderId: string }) {
       </div>
 
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto scrollbar-thin px-4 py-4">
+        {messages.length === 0 && (
+          <p className="pt-10 text-center text-sm text-muted-foreground">
+            Envie uma mensagem para a loja sobre o seu pedido.
+          </p>
+        )}
         <AnimatePresence initial={false}>
           {messages.map((message) => (
             <motion.div
@@ -67,27 +72,12 @@ export function OrderChat({ orderId }: { orderId: string }) {
                     message.author === "cliente" ? "text-primary-foreground" : "text-muted-foreground"
                   )}
                 >
-                  {message.time}
+                  {formatMessageTime(message)}
                 </span>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
-
-        {isTyping && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-secondary px-3.5 py-2.5">
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="size-1.5 rounded-full bg-muted-foreground"
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
       </div>
 
       <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-border p-3">

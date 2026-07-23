@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Phone, Clock } from "lucide-react";
+import { MapPin, Phone, Clock, ShieldCheck } from "lucide-react";
 import { storeInfo } from "@/data/store-info";
 import { categories } from "@/data/categories";
 
@@ -88,7 +88,7 @@ export function Footer() {
           </p>
         </div>
       </div>
-      <div className="flex flex-col items-center gap-1 border-t border-border/70 px-6 py-5 text-center text-xs text-muted-foreground">
+      <div className="flex flex-col items-center gap-2 border-t border-border/70 px-6 py-5 text-center text-xs text-muted-foreground">
         <span>© {new Date().getFullYear()} Doce Encanto. Todos os direitos reservados.</span>
         <span>
           Desenvolvido por{" "}
@@ -101,6 +101,13 @@ export function Footer() {
             Eprox Studio
           </a>
         </span>
+        <Link
+          href="/admin/login"
+          className="mt-2 flex items-center gap-2 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/40 hover:bg-accent hover:text-primary"
+        >
+          <ShieldCheck className="size-4" />
+          Acesso administrativo
+        </Link>
       </div>
     </footer>
   );

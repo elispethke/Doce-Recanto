@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Heart, Plus, Check } from "lucide-react";
@@ -9,6 +10,8 @@ import { RatingStars } from "@/features/catalog/components/rating-stars";
 import { formatBRL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/features/cart/context/cart-context";
+import { useCustomerAuth } from "@/contexts/customer-auth-context";
+import { toggleFavorite } from "@/services/firestore/customers.service";
 import type { Product } from "@/types/product";
 
 const badgeLabel: Record<NonNullable<Product["badge"]>, string> = {
@@ -18,14 +21,31 @@ const badgeLabel: Record<NonNullable<Product["badge"]>, string> = {
 };
 
 export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
+  const router = useRouter();
   const { addItem } = useCart();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { status, profile } = useCustomerAuth();
   const [justAdded, setJustAdded] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  const isFavorite = profile?.favoriteProductIds.includes(product.id) ?? false;
 
   function handleAdd() {
     addItem(product, 1);
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1200);
+  }
+
+  async function handleToggleFavorite() {
+    if (status !== "authenticated" || !profile) {
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    setPending(true);
+    try {
+      await toggleFavorite(profile, product.id);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -54,7 +74,8 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
         )}
 
         <button
-          onClick={() => setIsFavorite((v) => !v)}
+          onClick={handleToggleFavorite}
+          disabled={pending}
           aria-label="Favoritar"
           className="absolute top-2.5 right-2.5 flex size-8 items-center justify-center rounded-full bg-white/90 text-foreground shadow-sm backdrop-blur transition-transform hover:scale-110"
         >

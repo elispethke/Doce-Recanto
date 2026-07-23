@@ -2,25 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  browserLocalPersistence,
   onAuthStateChanged,
-  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   type User,
 } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, googleProvider } from "@/lib/firebase/auth";
-import { db } from "@/lib/firebase/firestore";
+import { adminAuth, adminGoogleProvider } from "@/lib/firebase/admin/auth";
 import { getAuthErrorMessage } from "@/lib/firebase/auth-errors";
+import { fetchAdmin } from "@/services/firestore/admins.service";
 import { AuthContext, type AuthStatus } from "@/contexts/auth-context";
 import type { AdminDoc } from "@/types/firebase-models";
-
-async function fetchAdminProfile(user: User): Promise<AdminDoc | null> {
-  const snapshot = await getDoc(doc(db, "admins", user.uid));
-  return snapshot.exists() ? (snapshot.data() as AdminDoc) : null;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -29,11 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    setPersistence(auth, browserLocalPersistence).catch(() => {
-      // Persistência indisponível (ex: modo privado) — segue com o padrão em memória.
-    });
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(adminAuth, async (firebaseUser) => {
       if (!firebaseUser) {
         setUser(null);
         setAdminProfile(null);
@@ -41,20 +29,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const profile = await fetchAdminProfile(firebaseUser);
+      try {
+        // Único critério de autorização: existir admins/{uid}. Nada é
+        // criado automaticamente — se não existir, acesso negado.
+        const profile = await fetchAdmin(firebaseUser.uid);
 
-      if (!profile) {
-        setAuthError("Conta não autorizada a acessar o painel administrativo.");
-        await signOut(auth);
+        if (!profile) {
+          setAuthError("Acesso negado. Essa conta não está autorizada a acessar o painel.");
+          await signOut(adminAuth);
+          setUser(null);
+          setAdminProfile(null);
+          setStatus("unauthenticated");
+          return;
+        }
+
+        setUser(firebaseUser);
+        setAdminProfile(profile);
+        setStatus("authenticated");
+      } catch (error) {
+        console.error("[admin-auth]", error);
+        setAuthError("Não foi possível validar essa conta. Tente novamente.");
+        await signOut(adminAuth);
         setUser(null);
         setAdminProfile(null);
         setStatus("unauthenticated");
-        return;
       }
-
-      setUser(firebaseUser);
-      setAdminProfile(profile);
-      setStatus("authenticated");
     });
 
     return unsubscribe;
@@ -63,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     setAuthError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(adminAuth, email, password);
     } catch (error) {
       const message = getAuthErrorMessage(error);
       setAuthError(message);
@@ -74,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setAuthError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(adminAuth, adminGoogleProvider);
     } catch (error) {
       const message = getAuthErrorMessage(error);
       setAuthError(message);
@@ -83,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOutUser = useCallback(async () => {
-    await signOut(auth);
+    await signOut(adminAuth);
   }, []);
 
   const value = useMemo(

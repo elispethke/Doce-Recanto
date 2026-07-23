@@ -8,12 +8,12 @@ import { CheckCircle2, MapPin, Clock, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatOrderId } from "@/lib/format";
 import { fetchOrder } from "@/services/orders.service";
-import type { Order } from "@/types/order";
+import type { OrderDoc } from "@/types/firebase-models";
 
-const paymentLabel = { pix: "PIX", credito: "Cartão de crédito", debito: "Cartão de débito" };
+const paymentLabel = { pix: "PIX", cartao: "Cartão", paypal: "PayPal", dinheiro: "Dinheiro" };
 
 export function OrderConfirmation({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<Order | null | undefined>(undefined);
+  const [order, setOrder] = useState<OrderDoc | null | undefined>(undefined);
 
   useEffect(() => {
     fetchOrder(orderId).then((result) => setOrder(result ?? null));
@@ -98,7 +98,7 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
           </p>
           <p className="flex items-center gap-2">
             <MapPin className="size-4 text-primary" />
-            {order.customer.endereco}, {order.customer.numero} — {order.customer.cidade}
+            {order.address}
           </p>
           <p className="flex items-center gap-2">
             <Clock className="size-4 text-primary" /> Previsão de entrega às {order.estimatedDelivery}

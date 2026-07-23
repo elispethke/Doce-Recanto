@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Search, Truck, User, ShoppingBag, ChevronDown } from "lucide-react";
+import { Menu, Search, Truck, ShoppingBag, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { CartPanel } from "@/components/layout/cart-panel";
+import { AccountMenu } from "@/components/layout/account-menu";
 import { storeInfo } from "@/data/store-info";
 import { useCart } from "@/features/cart/context/cart-context";
 
@@ -63,12 +64,7 @@ export function SiteHeader({ showCartTrigger = true }: { showCartTrigger?: boole
         >
           <Search className="size-5" />
         </button>
-        <button
-          aria-label="Minha conta"
-          className="flex size-9 items-center justify-center rounded-lg text-foreground hover:bg-accent"
-        >
-          <User className="size-5" />
-        </button>
+        <AccountMenu />
         {showCartTrigger && (
           <button
             onClick={() => setCartOpen(true)}

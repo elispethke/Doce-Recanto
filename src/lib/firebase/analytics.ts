@@ -1,5 +1,5 @@
 import { isSupported, getAnalytics, type Analytics } from "firebase/analytics";
-import { firebaseApp } from "./app";
+import { customerApp } from "./customer/app";
 
 let analyticsPromise: Promise<Analytics | null> | null = null;
 
@@ -10,7 +10,7 @@ export function getFirebaseAnalytics(): Promise<Analytics | null> {
 
   if (!analyticsPromise) {
     analyticsPromise = isSupported().then((supported) =>
-      supported ? getAnalytics(firebaseApp) : null
+      supported ? getAnalytics(customerApp) : null
     );
   }
 

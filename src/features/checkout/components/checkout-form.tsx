@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,12 +14,15 @@ import { PaymentMethodSelector } from "@/features/checkout/components/payment-me
 import { CartSummary } from "@/features/cart/components/cart-summary";
 import { checkoutSchema, type CheckoutSchema } from "@/features/checkout/schema/checkout-schema";
 import { useCart } from "@/features/cart/context/cart-context";
+import { useCustomerAuth } from "@/contexts/customer-auth-context";
 import { createOrder } from "@/services/orders.service";
 import { formatBRL } from "@/lib/format";
 
 export function CheckoutForm() {
   const router = useRouter();
+  const pathname = usePathname();
   const { items, subtotal, deliveryFee, total, clear } = useCart();
+  const { status, user, profile } = useCustomerAuth();
   const [submitting, setSubmitting] = useState(false);
 
   const {
@@ -27,6 +30,7 @@ export function CheckoutForm() {
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<CheckoutSchema>({
     resolver: zodResolver(checkoutSchema),
@@ -34,6 +38,15 @@ export function CheckoutForm() {
   });
 
   const formaPagamento = watch("formaPagamento");
+
+  useEffect(() => {
+    if (!profile) return;
+    reset((current) => ({
+      ...current,
+      nome: current.nome || profile.name,
+      telefone: current.telefone || profile.phone,
+    }));
+  }, [profile, reset]);
 
   if (items.length === 0) {
     return (
@@ -48,9 +61,50 @@ export function CheckoutForm() {
     );
   }
 
+  if (status !== "authenticated") {
+    const redirect = encodeURIComponent(pathname);
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-2xl bg-card p-12 text-center ring-1 ring-foreground/[0.06]">
+        <div className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground">
+          <LogIn className="size-6" />
+        </div>
+        <div>
+          <p className="font-heading text-lg font-semibold text-foreground">
+            Entre para finalizar sua compra
+          </p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            Seu carrinho continua salvo. Faça login ou crie uma conta para acompanhar seu pedido e
+            conversar com a loja.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button
+            size="lg"
+            nativeButton={false}
+            className="rounded-full px-8"
+            render={<Link href={`/login?redirect=${redirect}`} />}
+          >
+            Entrar
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            nativeButton={false}
+            className="rounded-full px-8"
+            render={<Link href={`/cadastro?redirect=${redirect}`} />}
+          >
+            Criar conta
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   async function onSubmit(data: CheckoutSchema) {
+    if (!user) return;
     setSubmitting(true);
     const order = await createOrder({
+      customerId: user.uid,
       items,
       subtotal,
       deliveryFee,

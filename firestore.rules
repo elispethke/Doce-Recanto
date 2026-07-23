@@ -7,40 +7,54 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Autorização real do admin: existir um documento em admins/{uid}.
     function isAdmin() {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Allowlist do painel administrativo. Documentos são criados manualmente
-    // pelo Console do Firebase (ou por um script com Admin SDK) — nunca pelo
-    // client, para não permitir que um usuário se autopromova a admin.
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function ownsOrder(orderId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid;
+    }
+
+    // Nenhum client pode criar/editar/apagar admins/{uid} — só é possível via
+    // Firestore Console (ou, no futuro, uma Cloud Function/Admin SDK com uma
+    // tela de gestão de administradores dentro do próprio painel).
     match /admins/{uid} {
-      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isAdmin() || isOwner(uid);
       allow write: if false;
     }
 
+    match /customers/{uid} {
+      allow read, update: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid);
+      allow delete: if isAdmin();
+    }
+
     match /orders/{orderId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || isOwner(resource.data.customerId);
+      allow create: if isAdmin() || isOwner(request.resource.data.customerId);
+      allow update, delete: if isAdmin();
     }
 
     match /chats/{orderId} {
       match /messages/{messageId} {
-        // TODO: quando o app do motorista existir, trocar por uma checagem
-        // "isAdmin() || isAssignedDriver(orderId)" baseada em drivers/{uid}.
-        allow read, write: if isAdmin();
+        // TODO: quando o app do motorista existir, incluir também
+        // "isAssignedDriver(orderId)" baseado em drivers/{uid}.
+        allow read, write: if isAdmin() || ownsOrder(orderId);
       }
 
       match /typing/{participantId} {
-        allow read, write: if isAdmin();
+        allow read, write: if isAdmin() || ownsOrder(orderId);
       }
     }
 
     match /drivers/{driverId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /customers/{customerId} {
       allow read, write: if isAdmin();
     }
 

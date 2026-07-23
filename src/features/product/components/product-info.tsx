@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ShoppingBag, Heart, Sparkles } from "lucide-react";
 import { RatingStars } from "@/features/catalog/components/rating-stars";
@@ -8,18 +9,37 @@ import { QuantitySelector } from "@/features/product/components/quantity-selecto
 import { Button } from "@/components/ui/button";
 import { formatBRL } from "@/lib/format";
 import { useCart } from "@/features/cart/context/cart-context";
+import { useCustomerAuth } from "@/contexts/customer-auth-context";
+import { toggleFavorite } from "@/services/firestore/customers.service";
 import type { Product } from "@/types/product";
 
 export function ProductInfo({ product }: { product: Product }) {
+  const router = useRouter();
   const { addItem } = useCart();
+  const { status, profile } = useCustomerAuth();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoritePending, setFavoritePending] = useState(false);
+
+  const isFavorite = profile?.favoriteProductIds.includes(product.id) ?? false;
 
   function handleAdd() {
     addItem(product, quantity);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1800);
+  }
+
+  async function handleToggleFavorite() {
+    if (status !== "authenticated" || !profile) {
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    setFavoritePending(true);
+    try {
+      await toggleFavorite(profile, product.id);
+    } finally {
+      setFavoritePending(false);
+    }
   }
 
   return (
@@ -100,7 +120,8 @@ export function ProductInfo({ product }: { product: Product }) {
         </Button>
 
         <button
-          onClick={() => setIsFavorite((v) => !v)}
+          onClick={handleToggleFavorite}
+          disabled={favoritePending}
           aria-label="Favoritar"
           className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border text-foreground hover:bg-accent"
         >

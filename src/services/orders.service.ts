@@ -1,23 +1,17 @@
+import { orderBy, where, type Timestamp } from "firebase/firestore";
 import type { CartItem } from "@/types/cart";
-import type { CheckoutFormValues } from "@/types/checkout";
-import type { ChatMessage, Order, OrderStatus } from "@/types/order";
+import type { CheckoutFormValues, PaymentMethod } from "@/types/checkout";
+import type { OrderDoc, OrderItemDoc, OrderPaymentMethod } from "@/types/firebase-models";
+import { createRepository, serverTimestamp } from "@/repositories/firestore-repository";
+import { customerDb } from "@/lib/firebase/customer/firestore";
 import { storeInfo } from "@/data/store-info";
 
-const ORDERS_KEY = "doce-encanto:orders";
-const CHAT_KEY_PREFIX = "doce-encanto:chat:";
+const ordersRepo = createRepository<OrderDoc>("orders", customerDb);
 
-function readOrders(): Record<string, Order> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(window.localStorage.getItem(ORDERS_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
-
-function writeOrders(orders: Record<string, Order>) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+// A loja oferece PIX/crédito/débito no checkout, mas o financeiro do admin
+// agrupa por "cartao" (crédito e débito somados) — só o PIX fica separado.
+function toOrderPaymentMethod(method: PaymentMethod): OrderPaymentMethod {
+  return method === "pix" ? "pix" : "cartao";
 }
 
 function generateOrderId(): string {
@@ -31,6 +25,7 @@ function estimatedDeliveryLabel(): string {
 }
 
 interface CreateOrderInput {
+  customerId: string;
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
@@ -38,90 +33,56 @@ interface CreateOrderInput {
   customer: CheckoutFormValues;
 }
 
-// Camada de serviço: hoje persiste em localStorage, mas a assinatura assíncrona
-// já reflete o contrato de uma futura API (ex: POST /api/orders).
-export async function createOrder(input: CreateOrderInput): Promise<Order> {
-  const order: Order = {
-    id: generateOrderId(),
-    createdAt: new Date().toISOString(),
-    items: input.items,
+export async function createOrder(input: CreateOrderInput): Promise<OrderDoc> {
+  const items: OrderItemDoc[] = input.items.map((item) => ({
+    productId: item.productId,
+    name: item.name,
+    image: item.image,
+    price: item.price,
+    quantity: item.quantity,
+  }));
+
+  const address = `${input.customer.endereco}, ${input.customer.numero}${
+    input.customer.complemento ? ` - ${input.customer.complemento}` : ""
+  } — ${input.customer.cidade}`;
+
+  const id = generateOrderId();
+
+  await ordersRepo.setById(id, {
+    customerId: input.customerId,
+    customerName: input.customer.nome,
+    customerPhone: input.customer.telefone,
+    address,
+    items,
     subtotal: input.subtotal,
     deliveryFee: input.deliveryFee,
+    notes: input.customer.observacoes,
+    paymentMethod: toOrderPaymentMethod(input.customer.formaPagamento),
     total: input.total,
-    paymentMethod: input.customer.formaPagamento,
-    customer: input.customer,
-    status: "recebido",
+    status: "novo",
     estimatedDelivery: estimatedDeliveryLabel(),
-  };
+    createdAt: serverTimestamp() as unknown as Timestamp,
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
 
-  const orders = readOrders();
-  orders[order.id] = order;
-  writeOrders(orders);
-  seedChat(order.id);
-
+  const order = await ordersRepo.getById(id);
+  if (!order) throw new Error("Não foi possível criar o pedido.");
   return order;
 }
 
-export async function fetchOrder(id: string): Promise<Order | undefined> {
-  const orders = readOrders();
-  return orders[id.toUpperCase()];
+export async function fetchOrder(id: string): Promise<OrderDoc | null> {
+  return ordersRepo.getById(id.toUpperCase());
 }
 
-export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
-  const orders = readOrders();
-  const order = orders[id.toUpperCase()];
-  if (!order) return;
-  order.status = status;
-  orders[id.toUpperCase()] = order;
-  writeOrders(orders);
+export function subscribeToOrder(
+  id: string,
+  onChange: (order: OrderDoc | null) => void
+): () => void {
+  return ordersRepo.subscribeToDoc(id.toUpperCase(), onChange);
 }
 
-function seedChat(orderId: string) {
-  if (typeof window === "undefined") return;
-  const seeded: ChatMessage[] = [
-    {
-      id: crypto.randomUUID(),
-      author: "loja",
-      text: `Oi! Recebemos seu pedido ${orderId} e já estamos preparando tudo com muito carinho. 💗`,
-      time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-    },
-  ];
-  window.localStorage.setItem(`${CHAT_KEY_PREFIX}${orderId}`, JSON.stringify(seeded));
-}
-
-export async function fetchChatMessages(orderId: string): Promise<ChatMessage[]> {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(window.localStorage.getItem(`${CHAT_KEY_PREFIX}${orderId}`) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-export async function sendChatMessage(orderId: string, text: string): Promise<ChatMessage[]> {
-  const messages = await fetchChatMessages(orderId);
-  const newMessage: ChatMessage = {
-    id: crypto.randomUUID(),
-    author: "cliente",
-    text,
-    time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-  };
-  const updated = [...messages, newMessage];
-  window.localStorage.setItem(`${CHAT_KEY_PREFIX}${orderId}`, JSON.stringify(updated));
-  return updated;
-}
-
-export async function sendAutoReply(orderId: string): Promise<ChatMessage[]> {
-  const messages = await fetchChatMessages(orderId);
-  const reply: ChatMessage = {
-    id: crypto.randomUUID(),
-    author: "loja",
-    text: "Recebemos sua mensagem! Em breve alguém da nossa equipe responde por aqui. 🍓",
-    time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-  };
-  const updated = [...messages, reply];
-  window.localStorage.setItem(`${CHAT_KEY_PREFIX}${orderId}`, JSON.stringify(updated));
-  return updated;
+export async function fetchCustomerOrders(customerId: string): Promise<OrderDoc[]> {
+  return ordersRepo.getAll(where("customerId", "==", customerId), orderBy("createdAt", "desc"));
 }
 
 export function getWhatsappLink(message?: string): string {

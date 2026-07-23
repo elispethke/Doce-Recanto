@@ -339,6 +339,10 @@ export function getProductBySlug(slug: string) {
   return products.find((product) => product.slug === slug);
 }
 
+export function getProductsByIds(ids: string[]) {
+  return products.filter((product) => ids.includes(product.id));
+}
+
 export function getRelatedProducts(product: Product, limit = 4) {
   return products
     .filter((p) => p.id !== product.id && p.category === product.category)

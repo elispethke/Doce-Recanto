@@ -7,12 +7,13 @@ import {
   getDocs,
   onSnapshot,
   query,
+  setDoc,
   updateDoc,
   type CollectionReference,
   type DocumentData,
+  type Firestore,
   type QueryConstraint,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/firestore";
 
 export { serverTimestamp } from "firebase/firestore";
 export type { QueryConstraint } from "firebase/firestore";
@@ -20,7 +21,10 @@ export type { QueryConstraint } from "firebase/firestore";
 // Fábrica genérica de acesso a uma coleção do Firestore. Centraliza toda
 // leitura/escrita para que nenhum componente chame getDocs/onSnapshot direto —
 // cada services/firestore/*.ts usa isto para sua coleção e expõe funções tipadas.
-export function createRepository<T extends { id: string }>(collectionPath: string) {
+// `db` é sempre explícito (nunca um singleton global) porque o projeto tem
+// duas instâncias de Firestore independentes — uma por app do cliente, outra
+// pelo app do admin (ver lib/firebase/customer e lib/firebase/admin).
+export function createRepository<T extends { id: string }>(collectionPath: string, db: Firestore) {
   const colRef = collection(db, collectionPath) as CollectionReference<DocumentData>;
 
   function toEntity(id: string, data: DocumentData): T {
@@ -47,25 +51,54 @@ export function createRepository<T extends { id: string }>(collectionPath: strin
     await updateDoc(doc(colRef, id), data as DocumentData);
   }
 
+  // Cria (ou substitui) um doc com ID explícito — usado quando o ID precisa
+  // ser algo conhecido de antemão (ex: uid do Firebase Auth), diferente de
+  // create() que sempre gera um ID novo via addDoc.
+  async function setById(id: string, data: Omit<T, "id">): Promise<void> {
+    await setDoc(doc(colRef, id), data as DocumentData);
+  }
+
   async function remove(id: string): Promise<void> {
     await deleteDoc(doc(colRef, id));
   }
 
+  // onSnapshot precisa de um handler de erro explícito — sem ele, uma falha
+  // (ex: regra de segurança negando acesso) vira uma exceção não tratada que
+  // derruba a página. onError é opcional: por padrão só loga o erro.
   function subscribe(
     onChange: (items: T[]) => void,
-    ...constraints: QueryConstraint[]
+    constraints: QueryConstraint[] = [],
+    onError?: (error: Error) => void
   ): () => void {
     const target = constraints.length ? query(colRef, ...constraints) : colRef;
-    return onSnapshot(target, (snapshot) => {
-      onChange(snapshot.docs.map((docSnap) => toEntity(docSnap.id, docSnap.data())));
-    });
+    return onSnapshot(
+      target,
+      (snapshot) => {
+        onChange(snapshot.docs.map((docSnap) => toEntity(docSnap.id, docSnap.data())));
+      },
+      (error) => {
+        console.error(`[firestore:${collectionPath}]`, error);
+        onError?.(error);
+      }
+    );
   }
 
-  function subscribeToDoc(id: string, onChange: (item: T | null) => void): () => void {
-    return onSnapshot(doc(colRef, id), (snapshot) => {
-      onChange(snapshot.exists() ? toEntity(snapshot.id, snapshot.data()) : null);
-    });
+  function subscribeToDoc(
+    id: string,
+    onChange: (item: T | null) => void,
+    onError?: (error: Error) => void
+  ): () => void {
+    return onSnapshot(
+      doc(colRef, id),
+      (snapshot) => {
+        onChange(snapshot.exists() ? toEntity(snapshot.id, snapshot.data()) : null);
+      },
+      (error) => {
+        console.error(`[firestore:${collectionPath}/${id}]`, error);
+        onError?.(error);
+      }
+    );
   }
 
-  return { colRef, getAll, getById, create, update, remove, subscribe, subscribeToDoc };
+  return { colRef, getAll, getById, create, setById, update, remove, subscribe, subscribeToDoc };
 }

@@ -11,10 +11,10 @@ import { formatBRL } from "@/lib/format";
 import { categoryIcons } from "@/lib/category-icons";
 
 const secondaryItems = [
-  { label: "Meus pedidos", icon: Package },
-  { label: "Favoritos", icon: Heart },
-  { label: "Endereços", icon: MapPin },
-  { label: "Configurações", icon: Settings },
+  { label: "Meus pedidos", href: "/conta/pedidos", icon: Package },
+  { label: "Favoritos", href: "/conta/favoritos", icon: Heart },
+  { label: "Endereços", href: "/conta/enderecos", icon: MapPin },
+  { label: "Configurações", href: "/conta/configuracoes", icon: Settings },
 ];
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
@@ -67,13 +67,19 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <div className="my-2 h-px bg-border" />
 
         {secondaryItems.map((item) => (
-          <div
+          <Link
             key={item.label}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/70"
+            href={item.href}
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground",
+              pathname === item.href &&
+                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+            )}
           >
             <item.icon className="size-4.5" />
             {item.label}
-          </div>
+          </Link>
         ))}
       </nav>
 

@@ -1,4 +1,4 @@
-import { products, getProductBySlug, getRelatedProducts } from "@/data/products";
+import { products, getProductBySlug, getRelatedProducts, getProductsByIds } from "@/data/products";
 import type { Product, ProductCategory } from "@/types/product";
 
 export interface ProductQuery {
@@ -48,6 +48,10 @@ export async function fetchProductBySlug(slug: string): Promise<Product | undefi
 
 export async function fetchRelatedProducts(product: Product): Promise<Product[]> {
   return getRelatedProducts(product);
+}
+
+export async function fetchProductsByIds(ids: string[]): Promise<Product[]> {
+  return getProductsByIds(ids);
 }
 
 export async function fetchHighlightedProducts(limit = 4): Promise<Product[]> {
