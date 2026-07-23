@@ -65,5 +65,21 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read, write: if isAdmin();
     }
+
+    match /calendarEvents/{eventId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /financialEntries/{entryId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Coleção observada pela extensão "Trigger Email" (firestore-send-email).
+    // Só o admin cria o gatilho; a extensão processa via Admin SDK, que
+    // ignora estas regras — por isso update/delete ficam bloqueados aqui.
+    match /mail/{mailId} {
+      allow create: if isAdmin();
+      allow read, update, delete: if false;
+    }
   }
 }

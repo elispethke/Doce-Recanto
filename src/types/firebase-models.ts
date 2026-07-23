@@ -50,6 +50,7 @@ export type DriverStatus = "disponivel" | "ocupado" | "offline" | "desligado";
 export interface DriverDoc {
   id: string;
   name: string;
+  email: string;
   phone: string;
   photoUrl?: string;
   status: DriverStatus;
@@ -119,4 +120,27 @@ export interface StoreSettingsDoc {
   freeDeliveryThreshold: number;
   paymentMethods: OrderPaymentMethod[];
   updatedAt: Timestamp;
+}
+
+export type FinancialEntryType = "entrada" | "saida";
+
+export interface FinancialEntryDoc {
+  id: string;
+  type: FinancialEntryType;
+  description: string;
+  amount: number;
+  category?: string;
+  date: string; // ISO "yyyy-MM-dd"
+  createdAt: Timestamp;
+}
+
+export type CalendarEventType = "entrega" | "encomenda" | "importante";
+
+export interface CalendarEventDoc {
+  id: string;
+  title: string;
+  type: CalendarEventType;
+  date: string; // ISO "yyyy-MM-dd"
+  notes?: string;
+  createdAt: Timestamp;
 }

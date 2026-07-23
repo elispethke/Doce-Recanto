@@ -31,6 +31,13 @@ export function createRepository<T extends { id: string }>(collectionPath: strin
     return { id, ...data } as T;
   }
 
+  // addDoc/setDoc/updateDoc rejeitam campos com valor `undefined` (ex: um
+  // input opcional deixado em branco) — filtra antes de escrever, em vez de
+  // exigir que cada service se lembre de omitir a chave manualmente.
+  function stripUndefined(data: DocumentData): DocumentData {
+    return Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined));
+  }
+
   async function getAll(...constraints: QueryConstraint[]): Promise<T[]> {
     const target = constraints.length ? query(colRef, ...constraints) : colRef;
     const snapshot = await getDocs(target);
@@ -43,19 +50,19 @@ export function createRepository<T extends { id: string }>(collectionPath: strin
   }
 
   async function create(data: Omit<T, "id">): Promise<string> {
-    const ref = await addDoc(colRef, data as DocumentData);
+    const ref = await addDoc(colRef, stripUndefined(data as DocumentData));
     return ref.id;
   }
 
   async function update(id: string, data: Partial<Omit<T, "id">>): Promise<void> {
-    await updateDoc(doc(colRef, id), data as DocumentData);
+    await updateDoc(doc(colRef, id), stripUndefined(data as DocumentData));
   }
 
   // Cria (ou substitui) um doc com ID explícito — usado quando o ID precisa
   // ser algo conhecido de antemão (ex: uid do Firebase Auth), diferente de
   // create() que sempre gera um ID novo via addDoc.
   async function setById(id: string, data: Omit<T, "id">): Promise<void> {
-    await setDoc(doc(colRef, id), data as DocumentData);
+    await setDoc(doc(colRef, id), stripUndefined(data as DocumentData));
   }
 
   async function remove(id: string): Promise<void> {

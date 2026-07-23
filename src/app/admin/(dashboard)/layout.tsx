@@ -4,6 +4,8 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { AdminDataProvider } from "@/features/admin/shared/providers/admin-data-provider";
+import { AdminShell } from "@/features/admin/layout/components/admin-shell";
 
 export default function AdminDashboardGroupLayout({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -23,5 +25,9 @@ export default function AdminDashboardGroupLayout({ children }: { children: Reac
     );
   }
 
-  return <>{children}</>;
+  return (
+    <AdminDataProvider>
+      <AdminShell>{children}</AdminShell>
+    </AdminDataProvider>
+  );
 }

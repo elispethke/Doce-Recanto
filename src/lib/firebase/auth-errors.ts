@@ -7,6 +7,8 @@ const messages: Record<string, string> = {
   "auth/too-many-requests": "Muitas tentativas. Aguarde um momento e tente novamente.",
   "auth/popup-closed-by-user": "Login cancelado.",
   "auth/network-request-failed": "Falha de conexão. Verifique sua internet.",
+  "auth/email-already-in-use": "Já existe uma conta com esse e-mail.",
+  "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
 };
 
 export function getAuthErrorMessage(error: unknown): string {
