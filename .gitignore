@@ -43,6 +43,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude code (local agent/tooling config — never published)
+.claude/
+CLAUDE.md
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
