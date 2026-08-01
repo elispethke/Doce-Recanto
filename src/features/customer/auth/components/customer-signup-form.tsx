@@ -83,7 +83,7 @@ export function CustomerSignupForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3.5">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="name">Nome completo</Label>
           <Input id="name" placeholder="Seu nome completo" {...register("name")} />

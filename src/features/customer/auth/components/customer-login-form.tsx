@@ -83,7 +83,7 @@ export function CustomerLoginForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email">E-mail</Label>
           <Input id="email" type="email" placeholder="voce@email.com" {...register("email")} />
